@@ -52,6 +52,16 @@
   vertical-align: middle;
 }
 
+.tc-badge-openai {
+  background: #22c55e;
+  color: #052e16;
+}
+
+.tc-badge-demo {
+  background: #fbbf24;
+  color: #422006;
+}
+
 .tc-icon-btn {
   background: transparent;
   border: none;
@@ -95,6 +105,11 @@
   border-bottom-left-radius: 4px;
 }
 
+.tc-typing {
+  opacity: 0.7;
+  font-style: italic;
+}
+
 .tc-suggestions {
   display: flex;
   flex-wrap: wrap;
@@ -112,6 +127,11 @@
   padding: 6px 10px;
   font-size: 12px;
   cursor: pointer;
+}
+
+.tc-suggestions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .tc-composer {
