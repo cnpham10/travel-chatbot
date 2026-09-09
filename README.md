@@ -11,7 +11,7 @@ Small commits, block by block.
 
 - [x] Vite + React + TypeScript scaffold + demo page shell
 - [x] Chat widget UI
-- [ ] Wire UI to Rocket's chat API
+- [x] Wire UI to Rocket's chat API
 - [ ] Polish / embed docs
 - [x] Express chat API scaffold (`server/`)
 - [x] `GET /api/health` + `POST /api/chat` (demo + OpenAI)
@@ -23,7 +23,7 @@ npm install
 npm run dev
 ```
 
-Vite runs on port **5173** and should proxy `/api` → `http://localhost:3001`.
+Vite runs on port **5173** and proxies `/api` → `http://localhost:3001`.
 
 ## Backend
 

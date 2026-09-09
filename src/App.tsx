@@ -8,15 +8,15 @@ export default function App() {
         <p className="eyebrow">Flights-only OTA</p>
         <h1>Travel chatbot</h1>
         <p className="lede">
-          Front-end chat widget is live. Backend replies come next from Rocket.
+          Chat widget talks to Rocket&apos;s API on port 3001 (proxied via Vite).
         </p>
       </header>
       <main className="card">
         <h2>This commit</h2>
         <ul>
-          <li>Floating chat button + panel</li>
-          <li>Message list, suggestions, composer</li>
-          <li>Local UI-only replies (no API yet)</li>
+          <li>Wire composer to <code>POST /api/chat</code></li>
+          <li>Mode badge from <code>GET /api/health</code></li>
+          <li>Vite proxy <code>/api</code> → <code>localhost:3001</code></li>
         </ul>
       </main>
       <TravelChatbot defaultOpen />
