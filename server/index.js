@@ -1,10 +1,26 @@
 import "dotenv/config";
 import express from "express";
+import cors from "cors";
 import OpenAI from "openai";
 import { z } from "zod";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+const corsOrigin = process.env.CORS_ORIGIN;
+app.use(
+  cors({
+    origin: corsOrigin
+      ? corsOrigin
+      : (origin, callback) => {
+          if (!origin || /^https?:\/\/localhost(?::\d+)?$/.test(origin) || /^https?:\/\/127\.0\.0\.1(?::\d+)?$/.test(origin)) {
+            callback(null, true);
+          } else {
+            callback(new Error("Not allowed by CORS"));
+          }
+        },
+  }),
+);
 
 app.use(express.json());
 
