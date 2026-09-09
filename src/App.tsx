@@ -1,3 +1,4 @@
+import TravelChatbot from './components/TravelChatbot'
 import './App.css'
 
 export default function App() {
@@ -7,17 +8,18 @@ export default function App() {
         <p className="eyebrow">Flights-only OTA</p>
         <h1>Travel chatbot</h1>
         <p className="lede">
-          Front-end shell for the in-site flight assistant. Chat UI lands next.
+          Front-end chat widget is live. Backend replies come next from Rocket.
         </p>
       </header>
       <main className="card">
-        <h2>Coming next</h2>
+        <h2>This commit</h2>
         <ul>
-          <li>Floating chat panel</li>
-          <li>Message list + composer</li>
-          <li>Hook up to Rocket&apos;s API</li>
+          <li>Floating chat button + panel</li>
+          <li>Message list, suggestions, composer</li>
+          <li>Local UI-only replies (no API yet)</li>
         </ul>
       </main>
+      <TravelChatbot defaultOpen />
     </div>
   )
 }

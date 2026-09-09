@@ -10,7 +10,7 @@ Small commits, block by block.
 ## Status
 
 - [x] Vite + React + TypeScript scaffold + demo page shell
-- [ ] Chat widget UI
+- [x] Chat widget UI
 - [ ] Wire UI to Rocket's chat API
 - [ ] Polish / embed docs
 
