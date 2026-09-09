@@ -1,5 +1,6 @@
+import "dotenv/config";
 import express from "express";
-import { randomUUID } from "crypto";
+import OpenAI from "openai";
 import { z } from "zod";
 
 const app = express();
@@ -8,14 +9,27 @@ const PORT = process.env.PORT || 3001;
 app.use(express.json());
 
 const chatMessageSchema = z.object({
-  role: z.enum(["user", "assistant", "system"]),
+  role: z.enum(["user", "assistant"]),
   content: z.string(),
 });
 
 const chatBodySchema = z.object({
   messages: z.array(chatMessageSchema).min(1),
-  conversationId: z.string().optional(),
 });
+
+const SYSTEM_PROMPT =
+  "You are a flights-only OTA assistant focused on US domestic flights. " +
+  "Help users find and compare US domestic flight options. " +
+  "Politely refuse requests about hotels, cars, cruises, trains, international travel, or other non-flight topics, " +
+  "and steer them back to domestic flights.";
+
+function hasOpenAIKey() {
+  return Boolean(process.env.OPENAI_API_KEY?.trim());
+}
+
+function currentMode() {
+  return hasOpenAIKey() ? "openai" : "demo";
+}
 
 function lastUserContent(messages) {
   for (let i = messages.length - 1; i >= 0; i--) {
@@ -26,7 +40,7 @@ function lastUserContent(messages) {
 
 function demoReply(userText) {
   const text = (userText || "").toLowerCase();
-  const airports = text.match(/\b([A-Z]{3})\b/g);
+  const airports = (userText || "").match(/\b([A-Z]{3})\b/g);
 
   if (/hotel|car rental|cruise|train|bus|airbnb|lodging/i.test(text)) {
     return (
@@ -55,11 +69,23 @@ function demoReply(userText) {
   );
 }
 
+async function openaiReply(messages) {
+  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
+  const completion = await client.chat.completions.create({
+    model,
+    messages: [{ role: "system", content: SYSTEM_PROMPT }, ...messages],
+  });
+  const content = completion.choices[0]?.message?.content?.trim();
+  if (!content) throw new Error("Empty OpenAI response");
+  return content;
+}
+
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true, service: "travel-chatbot" });
+  res.json({ ok: true, mode: currentMode() });
 });
 
-app.post("/api/chat", (req, res) => {
+app.post("/api/chat", async (req, res) => {
   const parsed = chatBodySchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({
@@ -67,14 +93,28 @@ app.post("/api/chat", (req, res) => {
     });
   }
 
-  const { messages, conversationId: providedId } = parsed.data;
-  const conversationId = providedId || randomUUID();
-  const content = demoReply(lastUserContent(messages));
+  const { messages } = parsed.data;
+
+  if (hasOpenAIKey()) {
+    try {
+      const content = await openaiReply(messages);
+      return res.json({
+        mode: "openai",
+        message: { role: "assistant", content },
+      });
+    } catch (err) {
+      console.error("OpenAI chat failed, falling back to demo:", err?.message || err);
+      return res.json({
+        mode: "demo",
+        message: { role: "assistant", content: demoReply(lastUserContent(messages)) },
+        warning: "OpenAI request failed; returned demo reply",
+      });
+    }
+  }
 
   return res.json({
-    conversationId,
-    message: { role: "assistant", content },
     mode: "demo",
+    message: { role: "assistant", content: demoReply(lastUserContent(messages)) },
   });
 });
 
