@@ -3,7 +3,7 @@
 AI travel chatbot for the flights-only OTA (US domestic-first).
 
 - **Front end:** Gizmo (this workstream)
-- **Back end:** Rocket
+- **Back end:** Cody
 
 Small commits, block by block.
 
@@ -11,7 +11,7 @@ Small commits, block by block.
 
 - [x] Vite + React + TypeScript scaffold + demo page shell
 - [x] Chat widget UI
-- [x] Wire UI to Rocket's chat API
+- [x] Wire UI to Cody's chat API
 - [ ] Polish / embed docs
 - [x] Express chat API scaffold (`server/`)
 - [x] `GET /api/health` + `POST /api/chat` (demo + OpenAI)
@@ -100,7 +100,6 @@ or
   "message": { "role": "assistant", "content": "..." }
 }
 ```
-
 or
 
 ```json
