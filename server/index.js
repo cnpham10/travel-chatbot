@@ -86,6 +86,14 @@ function buildFlightExtras(userText) {
   return { intent, flights, suggestions };
 }
 
+/** Attach optional flights + always-on suggestions to a chat response body. */
+function withFlightExtras(body, userText) {
+  const { flights, suggestions } = buildFlightExtras(userText);
+  body.suggestions = suggestions;
+  if (flights?.length) body.flights = flights;
+  return body;
+}
+
 function demoReply(userText, flights = []) {
   const text = (userText || "").toLowerCase();
   const airports = (userText || "").match(/\b([A-Z]{3})\b/g);
@@ -181,10 +189,16 @@ app.post("/api/chat", async (req, res) => {
   if (hasOpenAIKey()) {
     try {
       const content = await openaiReply(messages);
-      return res.json({
-        mode: "openai",
-        message: { role: "assistant", content },
-      });
+      // v1: no tool-calling — still attach mock flights/suggestions from local intent parse
+      return res.json(
+        withFlightExtras(
+          {
+            mode: "openai",
+            message: { role: "assistant", content },
+          },
+          userText,
+        ),
+      );
     } catch (err) {
       console.error("OpenAI chat failed, falling back to demo:", err?.message || err);
       return res.json(
