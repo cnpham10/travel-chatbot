@@ -7,6 +7,7 @@ import {
   parseFlightIntent,
   searchFlights,
   buildSuggestions,
+  searchAirports,
 } from "./flights.js";
 
 const app = express();
@@ -158,6 +159,12 @@ function demoChatResponse(userText, warning) {
 
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, mode: currentMode() });
+});
+
+/** Search static US airports by code / city / name (max 8). */
+app.get("/api/airports", (req, res) => {
+  const q = typeof req.query.q === "string" ? req.query.q : "";
+  res.json({ airports: searchAirports(q) });
 });
 
 app.post("/api/chat", async (req, res) => {
