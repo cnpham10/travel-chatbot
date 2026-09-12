@@ -8,17 +8,30 @@ export default function App() {
         <p className="eyebrow">Flights-only OTA</p>
         <h1>Travel chatbot</h1>
         <p className="lede">
-          Chat widget talks to Rocket&apos;s API on port 3001 (proxied via Vite).
+          Floating flight assistant wired to Cody&apos;s API on port 3001 (Vite proxies{' '}
+          <code>/api</code>).
         </p>
       </header>
+
       <main className="card">
-        <h2>This commit</h2>
+        <h2>Try it</h2>
+        <p>
+          Open the plane button (bottom-right). Demo mode works without a key; set{' '}
+          <code>OPENAI_API_KEY</code> in <code>server/.env</code> for live AI.
+        </p>
         <ul>
-          <li>Wire composer to <code>POST /api/chat</code></li>
-          <li>Mode badge from <code>GET /api/health</code></li>
-          <li>Vite proxy <code>/api</code> → <code>localhost:3001</code></li>
+          <li>
+            Front end: <code>npm run dev</code> → port 5173
+          </li>
+          <li>
+            Back end: <code>npm run server:dev</code> → port 3001
+          </li>
+          <li>
+            Embed tips: see <strong>Embed the widget</strong> in the README
+          </li>
         </ul>
       </main>
+
       <TravelChatbot defaultOpen />
     </div>
   )
