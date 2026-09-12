@@ -12,7 +12,7 @@ Small commits, block by block.
 - [x] Vite + React + TypeScript scaffold + demo page shell
 - [x] Chat widget UI
 - [x] Wire UI to Cody's chat API
-- [ ] Polish / embed docs
+- [x] Polish / embed docs
 - [x] Express chat API scaffold (`server/`)
 - [x] `GET /api/health` + `POST /api/chat` (demo + OpenAI)
 
@@ -24,6 +24,41 @@ npm run dev
 ```
 
 Vite runs on port **5173** and proxies `/api` → `http://localhost:3001`.
+
+## Embed the widget
+
+Drop the floating assistant into another React app from this repo:
+
+```tsx
+import TravelChatbot from './components/TravelChatbot'
+import './components/TravelChatbot.css'
+
+export function Layout() {
+  return (
+    <>
+      {/* your page */}
+      <TravelChatbot defaultOpen={false} />
+    </>
+  )
+}
+```
+
+### Props
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `defaultOpen` | `boolean` | `false` | Open the panel on first render |
+
+### API routing
+
+The widget calls `GET /api/health` and `POST /api/chat` on the **same origin** as the page.
+
+- **This Vite demo:** already proxies `/api` → `http://localhost:3001` (see `vite.config.ts`).
+- **Another host app:** proxy `/api` to Cody's Express server, or point a reverse proxy at port **3001**.
+
+Also import `TravelChatbot.css` (or copy its styles) so the FAB + panel look correct.
+
+Keyboard: **Escape** closes the panel; focus moves to the composer when it opens.
 
 ## Backend
 
