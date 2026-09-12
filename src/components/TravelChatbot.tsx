@@ -18,7 +18,7 @@ type Props = {
   defaultOpen?: boolean
 }
 
-/** Chat widget wired to Rocket's Express API (`/api/health`, `/api/chat`). */
+/** Chat widget wired to Cody's Express API (`/api/health`, `/api/chat`). */
 export function TravelChatbot({ defaultOpen = false }: Props) {
   const [open, setOpen] = useState(defaultOpen)
   const [input, setInput] = useState('')
@@ -32,6 +32,7 @@ export function TravelChatbot({ defaultOpen = false }: Props) {
     },
   ])
   const bottomRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     fetch('/api/health')
@@ -46,6 +47,17 @@ export function TravelChatbot({ defaultOpen = false }: Props) {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, open, busy])
+
+  useEffect(() => {
+    if (!open) return
+    inputRef.current?.focus()
+
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open])
 
   async function send(text: string) {
     const trimmed = text.trim()
@@ -139,6 +151,7 @@ export function TravelChatbot({ defaultOpen = false }: Props) {
 
           <form className="tc-composer" onSubmit={onSubmit}>
             <input
+              ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Ask about flights…"
