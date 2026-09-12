@@ -3,6 +3,11 @@ import express from "express";
 import cors from "cors";
 import OpenAI from "openai";
 import { z } from "zod";
+import {
+  parseFlightIntent,
+  searchFlights,
+  buildSuggestions,
+} from "./flights.js";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -54,7 +59,33 @@ function lastUserContent(messages) {
   return "";
 }
 
-function demoReply(userText) {
+function formatDuration(minutes) {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m ? `${h}h ${m}m` : `${h}h`;
+}
+
+/** Parse intent and optionally attach matching mock flights + suggestion chips. */
+function buildFlightExtras(userText) {
+  const intent = parseFlightIntent(userText);
+  let flights;
+  if (intent.from && intent.to) {
+    flights = searchFlights({
+      from: intent.from,
+      to: intent.to,
+      cabin: intent.cabin || undefined,
+    });
+  }
+  const suggestions = buildSuggestions({
+    from: intent.from,
+    to: intent.to,
+    cabin: intent.cabin,
+    flights,
+  });
+  return { intent, flights, suggestions };
+}
+
+function demoReply(userText, flights = []) {
   const text = (userText || "").toLowerCase();
   const airports = (userText || "").match(/\b([A-Z]{3})\b/g);
 
@@ -63,6 +94,22 @@ function demoReply(userText) {
       "I specialize in US domestic flights only — I can't help with hotels, cars, or other travel. " +
       "Tell me your departure and arrival cities (or airport codes), preferred dates, and passengers, " +
       "and I'll help you find flight options."
+    );
+  }
+
+  if (flights.length > 0) {
+    const sample = flights.slice(0, 3);
+    const lines = sample.map(
+      (f) =>
+        `• ${f.airline} ${f.flightNumber}: ${f.from}→${f.to}, ` +
+        `${formatDuration(f.durationMinutes)}, ${f.stops === 0 ? "nonstop" : `${f.stops} stop(s)`}, ` +
+        `${f.cabin}, $${f.priceUsd}`,
+    );
+    const cheapest = Math.min(...flights.map((f) => f.priceUsd));
+    return (
+      `I found ${flights.length} US domestic option(s) for ${flights[0].from} → ${flights[0].to} ` +
+      `(from $${cheapest}). Here's a quick look:\n${lines.join("\n")}\n` +
+      "Tap a suggestion chip or tell me cabin, dates, or nonstop-only to refine."
     );
   }
 
@@ -97,6 +144,18 @@ async function openaiReply(messages) {
   return content;
 }
 
+function demoChatResponse(userText, warning) {
+  const { flights, suggestions } = buildFlightExtras(userText);
+  const body = {
+    mode: "demo",
+    message: { role: "assistant", content: demoReply(userText, flights || []) },
+    suggestions,
+  };
+  if (flights?.length) body.flights = flights;
+  if (warning) body.warning = warning;
+  return body;
+}
+
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, mode: currentMode() });
 });
@@ -110,6 +169,7 @@ app.post("/api/chat", async (req, res) => {
   }
 
   const { messages } = parsed.data;
+  const userText = lastUserContent(messages);
 
   if (hasOpenAIKey()) {
     try {
@@ -120,18 +180,13 @@ app.post("/api/chat", async (req, res) => {
       });
     } catch (err) {
       console.error("OpenAI chat failed, falling back to demo:", err?.message || err);
-      return res.json({
-        mode: "demo",
-        message: { role: "assistant", content: demoReply(lastUserContent(messages)) },
-        warning: "OpenAI request failed; returned demo reply",
-      });
+      return res.json(
+        demoChatResponse(userText, "OpenAI request failed; returned demo reply"),
+      );
     }
   }
 
-  return res.json({
-    mode: "demo",
-    message: { role: "assistant", content: demoReply(lastUserContent(messages)) },
-  });
+  return res.json(demoChatResponse(userText));
 });
 
 app.listen(PORT, () => {
