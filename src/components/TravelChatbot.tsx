@@ -21,6 +21,12 @@ export type FlightResult = {
   priceUsd: number
 }
 
+type Airport = {
+  code: string
+  city: string
+  name: string
+}
+
 type ApiMode = 'demo' | 'openai' | 'unknown'
 
 const FALLBACK_SUGGESTIONS = [
@@ -82,6 +88,30 @@ function parseSuggestions(raw: unknown): string[] | undefined {
   return chips.length ? chips : undefined
 }
 
+function parseAirports(raw: unknown): Airport[] {
+  if (!raw || typeof raw !== 'object') return []
+  const list = (raw as { airports?: unknown }).airports
+  if (!Array.isArray(list)) return []
+  const out: Airport[] = []
+  for (const item of list) {
+    if (!item || typeof item !== 'object') continue
+    const a = item as Record<string, unknown>
+    if (typeof a.code !== 'string') continue
+    out.push({
+      code: a.code,
+      city: String(a.city ?? ''),
+      name: String(a.name ?? ''),
+    })
+  }
+  return out
+}
+
+/** Last whitespace-separated token — used as airport query. */
+function lastToken(text: string): string {
+  const parts = text.trimEnd().split(/\s+/)
+  return parts[parts.length - 1] ?? ''
+}
+
 function FlightCard({ flight }: { flight: FlightResult }) {
   const stopsLabel =
     flight.stops === 0 ? 'Nonstop' : flight.stops === 1 ? '1 stop' : `${flight.stops} stops`
@@ -117,13 +147,15 @@ function FlightCard({ flight }: { flight: FlightResult }) {
   )
 }
 
-/** Chat widget wired to Cody's Express API (`/api/health`, `/api/chat`). */
+/** Chat widget wired to Cody's Express API (`/api/health`, `/api/chat`, `/api/airports`). */
 export function TravelChatbot({ defaultOpen = false }: Props) {
   const [open, setOpen] = useState(defaultOpen)
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [mode, setMode] = useState<ApiMode>('unknown')
   const [chipSuggestions, setChipSuggestions] = useState<string[]>(FALLBACK_SUGGESTIONS)
+  const [airports, setAirports] = useState<Airport[]>([])
+  const [airportOpen, setAirportOpen] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: 'assistant',
@@ -133,6 +165,7 @@ export function TravelChatbot({ defaultOpen = false }: Props) {
   ])
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const airportAbort = useRef<AbortController | null>(null)
 
   useEffect(() => {
     fetch('/api/health')
@@ -153,15 +186,69 @@ export function TravelChatbot({ defaultOpen = false }: Props) {
     inputRef.current?.focus()
 
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false)
+      if (e.key !== 'Escape') return
+      if (airportOpen) {
+        setAirportOpen(false)
+        setAirports([])
+        return
+      }
+      setOpen(false)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [open])
+  }, [open, airportOpen])
+
+  useEffect(() => {
+    const q = lastToken(input).trim()
+    if (q.length < 2) {
+      setAirports([])
+      setAirportOpen(false)
+      airportAbort.current?.abort()
+      return
+    }
+
+    const handle = window.setTimeout(() => {
+      airportAbort.current?.abort()
+      const ctrl = new AbortController()
+      airportAbort.current = ctrl
+
+      fetch(`/api/airports?q=${encodeURIComponent(q)}`, { signal: ctrl.signal })
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error('airports'))))
+        .then((data) => {
+          const list = parseAirports(data)
+          setAirports(list)
+          setAirportOpen(list.length > 0)
+        })
+        .catch((err: unknown) => {
+          if (err instanceof DOMException && err.name === 'AbortError') return
+          setAirports([])
+          setAirportOpen(false)
+        })
+    }, 220)
+
+    return () => window.clearTimeout(handle)
+  }, [input])
+
+  function pickAirport(airport: Airport) {
+    const token = lastToken(input)
+    const base = input.trimEnd()
+    const without =
+      token && base.toLowerCase().endsWith(token.toLowerCase())
+        ? base.slice(0, base.length - token.length).trimEnd()
+        : base
+    const next = without ? `${without} ${airport.code}` : airport.code
+    setInput(`${next} `)
+    setAirports([])
+    setAirportOpen(false)
+    inputRef.current?.focus()
+  }
 
   async function send(text: string) {
     const trimmed = text.trim()
     if (!trimmed || busy) return
+
+    setAirportOpen(false)
+    setAirports([])
 
     const next: ChatMessage[] = [...messages, { role: 'user', content: trimmed }]
     setMessages(next)
@@ -263,14 +350,39 @@ export function TravelChatbot({ defaultOpen = false }: Props) {
           </div>
 
           <form className="tc-composer" onSubmit={onSubmit}>
-            <input
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask about flights…"
-              disabled={busy}
-              aria-label="Message"
-            />
+            <div className="tc-composer-field">
+              <input
+                ref={inputRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Ask about flights… try SFO"
+                disabled={busy}
+                aria-label="Message"
+                aria-autocomplete="list"
+                aria-expanded={airportOpen}
+                autoComplete="off"
+              />
+              {airportOpen && airports.length > 0 && (
+                <ul className="tc-airport-list" role="listbox" aria-label="Airports">
+                  {airports.map((a) => (
+                    <li key={a.code}>
+                      <button
+                        type="button"
+                        role="option"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => pickAirport(a)}
+                      >
+                        <span className="tc-airport-code">{a.code}</span>
+                        <span className="tc-airport-meta">
+                          {a.city}
+                          {a.name ? ` · ${a.name}` : ''}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
             <button type="submit" disabled={busy || !input.trim()}>
               Send
             </button>
